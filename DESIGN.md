@@ -5,18 +5,20 @@ This document gives an overview of various pieces we use to build up the `<virtu
 ## VirtualRepeater (Repeats mixin)
 
 - Orchestrates DOM creation and layouting, ensures minimum number of nodes is created.
-- Given an `items` array, it displays `num` elements starting from `first` index.
-- Delegates DOM creation, update and recycling via `newChild, updateChild, recycleChild`.
+- Given a `totalItems` amount, it displays `num` elements starting from `first` index.
+- Delegates DOM creation, update and recycling via `newChild, updateChild, recycleChild, itemKey`.
 - Delegates DOM layout via `_measureCallback`.
 
 ### Basic setup
 
 ```js
+const myItems = new Array(20).fill({name: 'item'});
+
 const repeater = new VirtualRepeater({
   /**
    * The data model.
    */
-  items: new Array(20).fill({name: 'item'}),
+  totalItems: myItems.length,
   /**
    * From which index to start.
    */
@@ -32,9 +34,9 @@ const repeater = new VirtualRepeater({
   /**
    * The DOM representing data.
    */
-  newChild: (item, index) => {
+  newChild: (index) => {
     const child = document.createElement('section');
-    child.textContent = index + ' - ' + item.name;
+    child.textContent = index + ' - ' + myItems[index].name;
     return child;
   }
 });
@@ -58,53 +60,71 @@ const repeater = new VirtualRepeater({
   /**
    * The DOM representing data.
    */
-  newChild: (item, index) => {
+  newChild: (index) => {
     return pool.pop() || document.createElement('section');
   },
   /**
    * Updates the DOM with data.
    */
-  updateChild: (child, item, index) => {
-    child.textContent = index + ' - ' + item.name;
+  updateChild: (child, index) => {
+    child.textContent = index + ' - ' + myItems[index].name;
   },
   /**
    * Invoked when the DOM is about to be removed.
    * Here we keep the child in the main document.
    */
-  recycleChild: (child, item, index) => {
+  recycleChild: (child, index) => {
     pool.push(child);
   }
 });
 
 /**
- * Now, when we manipulate `items, first, num` properties,
+ * Now, when we modify `totalItems, first, num` properties,
  * the DOM will be recycled.
  */
-repeater.items = new Array(20).fill({name: 'item'});
+myItems.pop();
+repeater.totalItems = myItems.length;
 repeater.num = 5;
 setTimeout(() => {
   repeater.num = 2;
 }, 1000);
-
 ```
 
 ### Data manipulation
 
-Updates to the `items` array instance will not be captured by VirtualRepeater.
+VirtualRepeater updates the dom when `totalItems` changes.
 
-Either set a new array to trigger the update, or use `requestReset()` to notify of changes.
+If the number of items remains the same or you want to trigger a dom update, invoke `requestReset()`.
 
 ```js
-/**
- * You can set a new `items` array.
- */
-repeater.items = repeater.items.concat([{name: 'new item'}]);
-/**
- * You can also use `requestReset()` to notify of changes.
- */
-repeater.items.push({name: 'new item'});
+// Triggers a complete dom update.
+myItems.push({name: 'new item'});
+repeater.totalItems = myItems.length;
+
+// You can also request a dom update.
+myItems[0].name = 'hello';
 repeater.requestReset();
 ```
+
+### Efficient DOM re-ordering
+
+`VirtualRepeater` keeps track of the created children in a key/child map. This is done to minimize the dom created.
+
+The default key is the index, but you can customize the mapping through `itemKey`, which results in a more efficent re-ordering of the dom.
+```js
+repeater.itemKey = (index) => myContacts[index].userId;
+
+const moveContactToEnd = (contact) => {
+  // Remove contact.
+  myContacts.splice(myContacts.indexOf(contact), 1);
+  // Add it to the end.
+  myContacts.push(contact);
+  // Update dom.
+  repeater.requestReset();
+};
+```
+With the default `itemKey`, this would call `newChild`, even though it was the same contact.
+Whereas for the customized `itemKey`, this would not call `newChild`; it would just reuse the same DOM element.
 
 ### Protected methods/properties
 
@@ -133,7 +153,7 @@ Given a viewport size and total items count, it computes children position, cont
 ```js
 const layout = new Layout({
   viewportSize: {height: 1000},
-  totalItems: 20,
+  totalItems: myItems.length,
   /**
    * Layout direction, vertical (default) or horizontal.
    */
@@ -212,13 +232,13 @@ const list = new VirtualList({
   /**
    * The data model.
    */
-  items: new Array(20).fill({name: 'item'}),
+  totalItems: 20,
   /**
    * The DOM representing data.
    */
-  newChild: (item, index) => {
+  newChild: (index) => {
     const child = document.createElement('section');
-    child.textContent = index + ' - ' + item.name;
+    child.textContent = index + ' - ' + myItems[index].name;
     return child;
   }
 });

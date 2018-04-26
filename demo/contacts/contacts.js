@@ -46,7 +46,8 @@ export class Sample {
     const listProps = {
       layout: this.layout,
       container: this.container,
-      newChild: (item, idx) => {
+      newChild: (idx) => {
+        const item = this.items[idx];
         const type = itemType(item);
         const pool = this._pool[type] || (this._pool[type] = []);
         const recycled = pool.pop();
@@ -80,7 +81,8 @@ export class Sample {
           }
         }
       },
-      updateChild: (child, item, idx) => {
+      updateChild: (child, idx) => {
+        const item = this.items[idx];
         if (itemType(item) === 'contact') {
           child._idx = idx;
           child.querySelector('b').textContent =
@@ -90,10 +92,13 @@ export class Sample {
           child.textContent = item.title;
         }
       },
-      recycleChild: (child, item, idx) => {
+      recycleChild: (child, idx) => {
+        const item = this.items[idx];
         const type = itemType(item);
         if (type === 'contact') {
-          listProps.updateChild(child, this.resetValue, -1);
+          child._idx = -1;
+          child.querySelector('b').textContent = '';
+          child.querySelector('p').textContent = '';
         }
         this._pool[type].push(child);
       },
@@ -103,7 +108,7 @@ export class Sample {
   }
 
   render() {
-    this.list.items = this.items;
+    this.list.totalItems = this.items.length;
   }
 
   async load(data) {

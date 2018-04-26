@@ -33,6 +33,17 @@ export const RepeatsAndScrolls = Superclass => class extends Repeats
     }
   }
 
+  get totalItems() {
+    return super.totalItems;
+  }
+
+  set totalItems(len) {
+    super.totalItems = len;
+    if (this._layout) {
+      this._layout.totalItems = this.totalItems;
+    }
+  }
+
   get container() {
     return this._container;
   }
@@ -98,6 +109,7 @@ export const RepeatsAndScrolls = Superclass => class extends Repeats
       if (typeof this._layout.updateItemSizes === 'function') {
         this._measureCallback = this._layout.updateItemSizes.bind(this._layout);
       }
+      this._layout.totalItems = this.totalItems;
       this._layout.addEventListener('scrollsizechange', this);
       this._layout.addEventListener('scrollerrorchange', this);
       this._layout.addEventListener('itempositionchange', this);
@@ -159,8 +171,6 @@ export const RepeatsAndScrolls = Superclass => class extends Repeats
    */
   _updateView() {
     this._pendingUpdateView = null;
-
-    this._layout.totalItems = this._items ? this._items.length : 0;
 
     const listBounds = this._containerElement.getBoundingClientRect();
     // Avoid updating viewport if container is not visible.
